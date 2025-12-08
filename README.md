@@ -1,18 +1,28 @@
 # Cosmos-Prefer2.5
 
-A unified working environment for NVIDIA's **Cosmos-Predict2.5** and **Cosmos-Transfer2.5** World Foundation Models.
+A **unified learning and working environment** for NVIDIA's **Cosmos-Predict2.5** and **Cosmos-Transfer2.5** World Foundation Models.
 
-This project provides a single environment with access to both:
-- **[Cosmos-Predict2.5](https://github.com/nvidia-cosmos/cosmos-predict2.5)** - World simulation and video generation
-- **[Cosmos-Transfer2.5](https://github.com/nvidia-cosmos/cosmos-transfer2.5)** - Multi-controlnet for spatial control inputs
+This project provides:
+- ✅ **Consolidated environment** with Python 3.12 + CUDA 13.0 + PyTorch 2.9
+- ✅ **Comprehensive documentation** of architectures, training, and inference
+- ✅ **Step-by-step tutorials** with rich progress bars
+- ✅ **Ready-to-use examples** for quick experimentation
+- ✅ **Checkpoint management** utilities
+
+## What are World Foundation Models?
+
+World Foundation Models (WFMs) understand and simulate physical world dynamics:
+- **[Cosmos-Predict2.5](https://github.com/nvidia-cosmos/cosmos-predict2.5)** - Generate future video frames from text/image/video
+- **[Cosmos-Transfer2.5](https://github.com/nvidia-cosmos/cosmos-transfer2.5)** - Transfer control maps (depth, edge, seg) to diverse scenarios
 
 ## System Requirements
 
-- NVIDIA GPUs with Ampere architecture (RTX 30 Series, A100) or newer
-- NVIDIA driver >=570.124.06 compatible with [CUDA 12.8.1](https://docs.nvidia.com/cuda/archive/12.8.1/cuda-toolkit-release-notes/index.html)
-- Linux x86-64
-- glibc>=2.35 (e.g., Ubuntu >=22.04)
-- Python 3.10
+- **GPU**: NVIDIA Blackwell (H100/H200), Hopper, or Ampere (A100, RTX 3090/4090)
+- **VRAM**: Minimum 24GB (2B model), 80GB recommended (14B model)
+- **Driver**: >=525.x compatible with CUDA 13.0
+- **OS**: Linux x86-64 (Ubuntu >=22.04)
+- **Python**: 3.12
+- **CUDA**: 13.0
 
 ## Directory Structure
 
@@ -29,98 +39,146 @@ This project provides a single environment with access to both:
 
 ## Quick Start
 
-### 1. Prerequisites
-
-Make sure you have both Cosmos repositories cloned:
+### 1. Clone Repositories
 
 ```bash
 cd /localhome/local-tranminhq
 
-# Clone if not already present
-git clone git@github.com:nvidia-cosmos/cosmos-predict2.5.git
-git clone git@github.com:nvidia-cosmos/cosmos-transfer2.5.git
+# Clone Cosmos repositories if not already present
+git clone https://github.com/nvidia-cosmos/cosmos-predict2.5.git
+git clone https://github.com/nvidia-cosmos/cosmos-transfer2.5.git
 
 # Pull LFS files
 cd cosmos-predict2.5 && git lfs pull && cd ..
 cd cosmos-transfer2.5 && git lfs pull && cd ..
 ```
 
-Install system dependencies:
-
-```bash
-sudo apt install curl ffmpeg tree wget git-lfs
-```
-
-### 2. Run Setup
+### 2. Setup Environment
 
 ```bash
 cd cosmos-prefer2.5
 
-# Default: CUDA 12.8 with PyTorch 2.7 (Ampere-Hopper GPUs)
-bash setup.sh
+# Install system dependencies (if needed)
+sudo apt install curl ffmpeg tree wget git-lfs
 
-# Or specify CUDA version:
-bash setup.sh cu128    # CUDA 12.8 + PyTorch 2.7 (default)
-bash setup.sh cu129    # CUDA 12.9 + PyTorch 2.8
-bash setup.sh cu130    # CUDA 13.0 + PyTorch 2.9 (Blackwell)
-
-# Force reinstall all packages:
-bash setup.sh --force
-
-# Skip dependency sync (only setup PYTHONPATH):
-bash setup.sh --skip-deps
+# Create conda environment with Python 3.12 + CUDA 13.0
+bash setup_env.sh
 ```
 
 ### 3. Activate Environment
 
 ```bash
-source activate.sh
+source activate_env.sh
 ```
 
-### 4. Verify Installation
+This sets up `PYTHONPATH` to include both Cosmos-Predict2.5 and Cosmos-Transfer2.5.
+
+### 4. Download Checkpoints
 
 ```bash
-python test_setup.py
+# List available models
+python download_checkpoints.py --list
+
+# Download specific model
+python download_checkpoints.py --model predict2.5-2b-posttrained
+
+# Or download all models
+python download_checkpoints.py --all
 ```
 
-## Usage
-
-After activating the environment, you have access to both Cosmos packages:
-
-### Cosmos-Predict2.5
+### 5. Run Your First Inference
 
 ```bash
-# Run inference
-python -m cosmos_predict2.inference --help
+# Simple text-to-video generation
+cd cosmos_prefer2/examples
+python simple_inference.py --prompt "A robot arm picks up a red cube from a wooden table"
 
-# Or use the alias
-predict-infer --help
+# Output: output.mp4
 ```
 
-### Cosmos-Transfer2.5
+## Documentation
+
+This repository includes comprehensive pedagogical documentation:
+
+### 📖 Architecture Deep Dives
+- **[Architecture Overview](ARCHITECTURE_README.md)** - Complete system overview
+- **[DiT (Diffusion Transformer)](docs/ARCHITECTURE_DiT.md)** - Core generative model
+- **[Video Tokenizer (VAE)](docs/ARCHITECTURE_Tokenizer.md)** - Latent space compression
+- **[EDM Loss & Rectified Flow](docs/TRAINING_EDM_Loss.md)** - Training objectives
+
+### 🚀 Practical Guides
+- **[Step-by-Step Inference Tutorial](docs/INFERENCE_TUTORIAL.md)** - Complete walkthrough with progress bars
+- **[Simple Inference Example](cosmos_prefer2/examples/simple_inference.py)** - Ready-to-run script
+- **[Batch Inference Example](cosmos_prefer2/examples/batch_inference.py)** - Process multiple prompts
+
+### 📁 Repository Structure
+
+```
+cosmos-prefer2.5/
+├── docs/                           # Detailed documentation
+│   ├── ARCHITECTURE_DiT.md        # DiT transformer architecture
+│   ├── ARCHITECTURE_Tokenizer.md  # Video VAE tokenizer
+│   ├── TRAINING_EDM_Loss.md       # Training & loss functions
+│   └── INFERENCE_TUTORIAL.md      # Step-by-step inference guide
+├── cosmos_prefer2/                # Python package
+│   ├── __init__.py
+│   ├── __about__.py
+│   └── examples/                  # Example scripts
+│       ├── simple_inference.py    # Basic text2video
+│       └── batch_inference.py     # Batch processing
+├── checkpoints/                   # Downloaded model weights
+├── environment.yaml               # Conda environment (Python 3.12 + CUDA 13.0)
+├── pyproject.toml                # Python package config
+├── setup_env.sh                  # Environment setup script
+├── activate_env.sh               # Activation script (generated)
+├── download_checkpoints.py       # Checkpoint downloader
+├── ARCHITECTURE_README.md        # Architecture overview
+└── README.md                     # This file
+```
+
+## Usage Examples
+
+### Text-to-Video (Text2World)
 
 ```bash
-# Run inference
-python -m cosmos_transfer2.inference --help
+python cosmos_prefer2/examples/simple_inference.py \
+    --prompt "A robot arm picks up a red cube" \
+    --output robot_cube.mp4 \
+    --frames 121 \
+    --guidance 7.5
+```
 
-# Or use the alias
-transfer-infer --help
+### Batch Processing
+
+```bash
+# Create prompts.txt with one prompt per line
+python cosmos_prefer2/examples/batch_inference.py \
+    --prompts prompts.txt \
+    --output-dir outputs/batch/
 ```
 
 ### Python API
 
 ```python
-# Import both packages
-import cosmos_predict2
-import cosmos_transfer2
+import sys
+sys.path.insert(0, "/localhome/local-tranminhq/cosmos-predict2.5")
 
-# Access shared utilities
-import cosmos_oss
+from cosmos_predict2._src.predict2.inference.video2world import Video2WorldInference
 
-# PyTorch and CUDA
-import torch
-print(f"PyTorch: {torch.__version__}")
-print(f"CUDA available: {torch.cuda.is_available()}")
+# Initialize pipeline
+pipe = Video2WorldInference(
+    experiment_name="vid2world_cosmos_720p_t24",
+    ckpt_path="nvidia/Cosmos-Predict2.5-2B/base/post-trained/...",
+    s3_credential_path="",
+    context_parallel_size=1,
+)
+
+# Generate video
+video = pipe.generate_vid2world(
+    prompt="Your prompt here",
+    num_video_frames=121,
+    guidance=7.5,
+)
 ```
 
 ## Environment Variables
@@ -134,26 +192,72 @@ After activation, the following environment variables are set:
 | `COSMOS_PREFER_DIR` | Path to cosmos-prefer2.5 |
 | `PYTHONPATH` | Includes all Cosmos packages |
 
-## Downloading Model Checkpoints
+## Key Features
 
-1. Get a [Hugging Face Access Token](https://huggingface.co/settings/tokens) with `Read` permission
-2. Install Hugging Face CLI: `uv tool install -U "huggingface_hub[cli]"`
-3. Login: `hf auth login`
-4. Accept the [NVIDIA Open Model License Agreement](https://huggingface.co/nvidia/Cosmos-Guardrail1)
+### 🎯 Consolidated Dependencies
+- **Single environment** for both Predict and Transfer models
+- **Python 3.12** + **CUDA 13.0** + **PyTorch 2.9**
+- All dependencies from both repositories merged
 
-Checkpoints are automatically downloaded during inference. To change cache location:
+### 📚 Pedagogical Documentation
+- **Step-by-step explanations** of every component
+- **Architecture diagrams** and code walkthroughs
+- **Training objectives** (EDM, Rectified Flow) explained
+- **Practical examples** with rich progress bars
 
+### 🛠️ Utilities
+- **Checkpoint downloader** with progress tracking
+- **Inference examples** ready to run
+- **Batch processing** support
+- **Environment management** scripts
+
+### 🚀 Optimizations
+- Flash Attention 2 for memory efficiency
+- Context Parallelism for multi-GPU
+- Mixed precision (bfloat16)
+- Selective activation checkpointing
+
+## Model Checkpoints
+
+### Available Models
+
+| Model | Type | Size | Description |
+|-------|------|------|-------------|
+| `predict2.5-2b-pretrained` | Predict | 2B | Pre-trained base |
+| `predict2.5-2b-posttrained` | Predict | 2B | Post-trained base (recommended) |
+| `predict2.5-2b-auto-multiview` | Predict | 2B | Autonomous driving |
+| `predict2.5-2b-robot-action` | Predict | 2B | Robot action-conditioned |
+| `transfer2.5-2b-depth` | Transfer | 2B | Depth control |
+| `transfer2.5-2b-edge` | Transfer | 2B | Edge control |
+| `transfer2.5-2b-seg` | Transfer | 2B | Segmentation control |
+| `transfer2.5-2b-auto-multiview` | Transfer | 2B | Multi-camera driving |
+
+### Download Instructions
+
+```bash
+# List all available models
+python download_checkpoints.py --list
+
+# Download specific model
+python download_checkpoints.py --model predict2.5-2b-posttrained
+
+# Download to custom directory
+python download_checkpoints.py --model transfer2.5-2b-depth --cache-dir ./checkpoints
+
+# Download all models (large!)
+python download_checkpoints.py --all
+```
+
+### Hugging Face Setup
+
+1. Get [HF Access Token](https://huggingface.co/settings/tokens) with Read permission
+2. Login: `huggingface-cli login`
+3. Accept [NVIDIA Open Model License](https://huggingface.co/nvidia/Cosmos-Guardrail1)
+
+Checkpoints auto-download during first inference. Change cache location:
 ```bash
 export HF_HOME=/path/to/cache
 ```
-
-## Package Versions
-
-| CUDA Option | PyTorch | CUDA Toolkit | Target GPUs |
-|-------------|---------|--------------|-------------|
-| `cu128` | 2.7.1 | 12.8 | Ampere, Ada, Hopper |
-| `cu129` | 2.8.0 | 12.9 | Ampere, Ada, Hopper |
-| `cu130` | 2.9.0 | 13.0 | Blackwell |
 
 ## Troubleshooting
 
