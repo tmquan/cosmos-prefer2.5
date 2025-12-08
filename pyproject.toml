@@ -1,0 +1,148 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cosmos-prefer2"
+version = "0.1.0"
+authors = [
+    {name = "NVIDIA Corporation"},
+]
+description = "Cosmos-Prefer2.5: Educational repository for understanding and experimenting with Cosmos-Predict2.5 and Cosmos-Transfer2.5"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: GPU :: NVIDIA CUDA",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core dependencies from both cosmos-predict2 and cosmos-transfer2
+dependencies = [
+  # Image and video processing
+  "albumentations>=2.0.8",
+  "av>=16.0.1",
+  "decord>=0.6.0",
+  "imageio[pyav,ffmpeg]>=2.37.0",
+  "mediapy>=1.2.4",
+  "opencv-python>=4.11.0.86",
+  "pillow>=11.3.0",
+  "scikit-image>=0.25.2",
+  "pycocotools>=2.0.10",
+  
+  # Deep learning frameworks
+  "diffusers>=0.35.2",
+  "einops>=0.8.1",
+  "peft>=0.17.1",
+  "safetensors>=0.6.2",
+  "transformers==4.51.3",
+  
+  # NLP and text processing
+  "better-profanity>=0.7.0",
+  "ftfy>=6.3.1",
+  "nltk>=3.9.2",
+  "sentencepiece>=0.2.1",
+  
+  # Data and configuration
+  "attrs>=25.4.0",
+  "hydra-core>=1.3.2",
+  "omegaconf>=2.3.0",
+  "pydantic>=2.11.7",
+  "pyyaml>=6.0.3",
+  "tyro>=0.9.35",
+  
+  # Storage and I/O
+  "boto3>=1.40.58",
+  "fastparquet>=2024.11.0",
+  "huggingface-hub>=0.36.0",
+  "iopath>=0.1.10",
+  "multi-storage-client[boto3,google-cloud-storage,fsspec,observability-otel,msal]>=0.32.0",
+  "pyarrow>=19.0.0",
+  "webdataset>=1.0.2",
+  
+  # Utilities
+  "click>=8.3.0",
+  "h11>=0.16.0",
+  "loguru>=0.7.3",
+  "rich>=13.7.0",
+  "termcolor>=3.1.0",
+  "tqdm>=4.67.1",
+  "typing-extensions>=4.14.1",
+  
+  # Scientific computing
+  "fvcore>=0.1.5.post20221221",
+  "ml-dtypes>=0.5.3",
+  "numpy>=2.0.0",
+  "numpydantic>=1.7.0",
+  "pandas>=2.3.3",
+  "scipy>=1.15.3",
+  "setuptools>=80.9.0",
+  
+  # Model-specific
+  "megatron-core>=0.14.0",
+  "modelscope>=1.31.0",
+  "nvidia-ml-py>=13.580.82",
+  "protobuf>=6.33.0",
+  "qwen-vl-utils[decord]>=0.0.14",
+  "retinaface-py>=0.0.2",
+  
+  # Transfer2-specific dependencies
+  "cattrs>=25.2.0",
+  "easydict>=1.9",
+  "moderngl>=5.11.1",
+  "natsort>=8.4.0",
+  "OpenEXR>=3.3.1",
+  "sam2>=1.1.0",
+  "shapely>=2.0.5",
+  
+  # Monitoring and debugging
+  "ipdb>=0.13.13",
+  "pyinstrument>=5.1.1",
+  "pytest>=8.4.2",
+  "wandb>=0.22.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hatch>=1.15.1",
+  "pytest>=8.4.1",
+  "pytest-cov>=6.2.1",
+  "pytest-xdist>=3.8.0",
+  "ruff==0.12.7",
+  "jupyter>=1.0.0",
+  "ipython>=8.20.0",
+]
+
+[project.urls]
+documentation = "https://github.com/tmquan/cosmos-prefer2.5"
+repository = "https://github.com/tmquan/cosmos-prefer2.5"
+
+[tool.hatch.build.targets.sdist]
+packages = [
+  "cosmos_prefer2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "cosmos_prefer2",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+

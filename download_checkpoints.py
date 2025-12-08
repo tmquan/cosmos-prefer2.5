@@ -2,12 +2,24 @@
 """
 Download Cosmos model checkpoints from Hugging Face.
 
-This script helps download checkpoints for both Cosmos-Predict2.5 and Cosmos-Transfer2.5 models.
+This script downloads checkpoints using the HuggingFace cache structure,
+ensuring compatibility with cosmos-predict2.5 and cosmos-transfer2.5 inference.
+
+The checkpoints are stored in the HuggingFace cache format at:
+    {HF_HOME}/hub/models--nvidia--Cosmos-Predict2.5-2B/snapshots/...
+    
+For example, with HF_HOME=/workspace/checkpoints:
+    /workspace/checkpoints/hub/models--nvidia--Cosmos-Predict2.5-2B/snapshots/.../base/post-trained/*.pt
+
+This is the same location that cosmos inference will look for, preventing duplicate downloads.
 
 Usage:
+    # Set HF_HOME before running inference to use these cached files
+    export HF_HOME=/workspace/checkpoints
+    
     python download_checkpoints.py --help
-    python download_checkpoints.py --model predict2.5-2b-base
-    python download_checkpoints.py --model transfer2.5-2b-depth --cache-dir ./checkpoints
+    python download_checkpoints.py --model predict2.5-2b-posttrained
+    python download_checkpoints.py --model transfer2.5-2b-depth --cache-dir /custom/path
 """
 
 import argparse
@@ -18,9 +30,31 @@ from typing import Optional
 from huggingface_hub import hf_hub_download, snapshot_download
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TimeRemainingColumn
-from rich.table import Table
 
 console = Console()
+
+
+def print_tree(directory: Path, prefix: str = "", is_last: bool = True):
+    """Print directory tree structure, hiding hidden files/folders (starting with .)."""
+    if not directory.exists():
+        return
+    
+    # Print current directory/file
+    connector = "└── " if is_last else "├── "
+    console.print(f"{prefix}{connector}[cyan]{directory.name}[/cyan]")
+    
+    if directory.is_dir():
+        # Get all items in directory, excluding hidden files/folders (starting with .)
+        items = [item for item in directory.iterdir() if not item.name.startswith('.')]
+        items = sorted(items, key=lambda x: (not x.is_dir(), x.name))
+        
+        # Update prefix for children
+        extension = "    " if is_last else "│   "
+        
+        for i, item in enumerate(items):
+            is_last_item = i == len(items) - 1
+            print_tree(item, prefix + extension, is_last_item)
+
 
 # Model checkpoint configurations
 MODELS = {
@@ -89,27 +123,20 @@ MODELS = {
 
 
 def list_available_models():
-    """Display a table of available models."""
-    table = Table(title="Available Cosmos Model Checkpoints", show_header=True, header_style="bold magenta")
-    table.add_column("Model Key", style="cyan", no_wrap=True)
-    table.add_column("Type", style="green")
-    table.add_column("Description", style="yellow")
-    table.add_column("Files", style="white")
+    """Display a list of available models."""
+    console.print("\n[bold cyan]Available Cosmos Model Checkpoints:[/bold cyan]\n")
     
     for key, info in MODELS.items():
         model_type = "Predict" if "predict" in key else "Transfer"
-        table.add_row(
-            key,
-            model_type,
-            info["description"],
-            str(len(info["files"])) + " files"
-        )
-    
-    console.print(table)
+        console.print(f"  • [cyan]{key}[/cyan]")
+        console.print(f"    Type: [green]{model_type}[/green]")
+        console.print(f"    Description: [yellow]{info['description']}[/yellow]")
+        console.print(f"    Files: [white]{len(info['files'])} files[/white]")
+        console.print()
 
 
 def download_model(model_key: str, cache_dir: Optional[Path] = None):
-    """Download a specific model checkpoint."""
+    """Download a specific model checkpoint using HuggingFace cache."""
     if model_key not in MODELS:
         console.print(f"[red]Error: Model '{model_key}' not found![/red]")
         console.print("\nAvailable models:")
@@ -120,15 +147,25 @@ def download_model(model_key: str, cache_dir: Optional[Path] = None):
     repo_id = model_info["repo_id"]
     files = model_info["files"]
     
-    # Set default cache directory
+    # Set HF_HOME environment variable to control where HuggingFace caches files
+    # HuggingFace will create a 'hub' subdirectory: {HF_HOME}/hub/models--org--repo/...
     if cache_dir is None:
-        cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+        # Default to /workspace/checkpoints in Docker environment
+        if Path("/workspace").exists():
+            cache_dir = Path("/workspace/checkpoints")
+        else:
+            cache_dir = Path("./checkpoints")
     else:
         cache_dir = Path(cache_dir)
     
+    # Set HF_HOME to our cache directory
+    # HuggingFace will automatically use {HF_HOME}/hub/ for downloads
+    os.environ['HF_HOME'] = str(cache_dir)
+    console.print(f"[dim]HF_HOME set to: {cache_dir}[/dim]")
+    console.print(f"[dim]Files will be cached in: {cache_dir}/hub/[/dim]")
+    
     console.print(f"\n[bold cyan]Downloading {model_info['description']}[/bold cyan]")
     console.print(f"Repository: [green]{repo_id}[/green]")
-    console.print(f"Cache directory: [yellow]{cache_dir}[/yellow]")
     console.print(f"Number of files: [blue]{len(files)}[/blue]\n")
     
     downloaded_paths = []
@@ -146,13 +183,14 @@ def download_model(model_key: str, cache_dir: Optional[Path] = None):
             task_id = progress.add_task(f"Downloading {Path(file_path).name}", total=None)
             
             try:
+                # Use hf_hub_download with NO cache_dir parameter
+                # This respects HF_HOME and uses the standard structure
                 local_path = hf_hub_download(
                     repo_id=repo_id,
                     filename=file_path,
-                    cache_dir=str(cache_dir),
-                    local_dir_use_symlinks=False,
+                    # Don't pass cache_dir - let HF_HOME control the location
                 )
-                downloaded_paths.append(local_path)
+                downloaded_paths.append(Path(local_path))
                 progress.update(task_id, completed=True, description=f"✓ {Path(file_path).name}")
                 
             except Exception as e:
@@ -161,9 +199,10 @@ def download_model(model_key: str, cache_dir: Optional[Path] = None):
                 return False
     
     console.print(f"\n[bold green]✓ Successfully downloaded {len(downloaded_paths)} files![/bold green]\n")
-    console.print("[bold]Downloaded files:[/bold]")
+    console.print("[bold cyan]Downloaded files location:[/bold cyan]")
     for path in downloaded_paths:
-        console.print(f"  • {path}")
+        console.print(f"  • [dim]{path}[/dim]")
+    console.print()
     
     return True
 
@@ -201,10 +240,21 @@ Examples:
   python download_checkpoints.py --model predict2.5-2b-posttrained
   
   # Download to a custom directory
-  python download_checkpoints.py --model transfer2.5-2b-depth --cache-dir ./checkpoints
+  python download_checkpoints.py --model transfer2.5-2b-depth --cache-dir /custom/path
   
   # Download all models
   python download_checkpoints.py --all
+
+Important:
+  This script sets HF_HOME to ensure cosmos inference uses the same cache.
+  To use these checkpoints for inference, set the environment variable:
+  
+    export HF_HOME=/workspace/checkpoints
+    
+  Then run your inference scripts. This prevents duplicate downloads.
+  
+  The files are stored in HuggingFace's standard cache format:
+    /workspace/checkpoints/models--nvidia--Cosmos-Predict2.5-2B/snapshots/...
         """
     )
     
@@ -230,15 +280,13 @@ Examples:
         "--cache-dir",
         type=Path,
         default=None,
-        help="Cache directory for downloaded models (default: ~/.cache/huggingface/hub)"
+        help="Download directory for models (default: /workspace/checkpoints in Docker, ./checkpoints otherwise)"
     )
     
     args = parser.parse_args()
     
     # Display header
-    console.print("\n[bold magenta]═══════════════════════════════════════[/bold magenta]")
     console.print("[bold magenta]   Cosmos Model Checkpoint Downloader[/bold magenta]")
-    console.print("[bold magenta]═══════════════════════════════════════[/bold magenta]\n")
     
     if args.list:
         list_available_models()
@@ -249,6 +297,30 @@ Examples:
     else:
         parser.print_help()
         console.print("\n[yellow]Tip: Use --list to see available models[/yellow]")
+        return
+    
+    # Print directory tree at the end
+    final_cache_dir = Path(args.cache_dir) if args.cache_dir else (
+        Path("/workspace/checkpoints") if Path("/workspace").exists() else Path("./checkpoints")
+    )
+    
+    # Check for the hub subdirectory where HF actually stores files
+    hub_dir = final_cache_dir / "hub"
+    
+    if hub_dir.exists():
+        console.print(f"\n[bold cyan]HF_HOME:[/bold cyan] [yellow]{final_cache_dir}[/yellow]")
+        console.print(f"[bold cyan]Cache Directory:[/bold cyan] [yellow]{hub_dir}[/yellow]\n")
+        
+        # Show HF cache structure (models--org--repo format)
+        if list(hub_dir.glob("models--*")):
+            console.print("[bold cyan]Downloaded Models (HuggingFace Cache Format):[/bold cyan]\n")
+            for model_dir in sorted(hub_dir.glob("models--nvidia--Cosmos-*")):
+                console.print(f"  • [cyan]{model_dir.name}[/cyan]")
+            console.print()
+        
+        console.print("[bold green]✓ To use these checkpoints for inference, set:[/bold green]")
+        console.print(f"[yellow]  export HF_HOME={final_cache_dir}[/yellow]\n")
+        console.print("[dim]This ensures cosmos inference uses these cached files instead of re-downloading.[/dim]\n")
 
 
 if __name__ == "__main__":
