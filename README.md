@@ -17,21 +17,21 @@ mkdir -p ~/datasets ~/checkpoints
 # Clone repositories
 cd ~
 git clone https://github.com/nvidia-cosmos/cosmos-predict2.5
-git clone https://github.com/nvidia-cosmos/cosmos-transfer2.5
+git clone https://github.com/nvidia-cosmos/cosmos-transfer2.5  
 git clone https://github.com/tmquan/cosmos-prefer2.5
 
 # Start Docker container with HF_HOME set
 sudo docker run \
- --gpus all \
- --ipc=host \
+  --gpus all \
+  --ipc=host \
  -it \
  -e HF_HOME=/workspace/checkpoints \
- -v "$HOME/datasets:/workspace/datasets" \
- -v "$HOME/checkpoints:/workspace/checkpoints" \
- -v "$HOME/cosmos-prefer2.5:/workspace/cosmos-prefer2.5" \
- -v "$HOME/cosmos-predict2.5:/workspace/cosmos-predict2.5" \
- -v "$HOME/cosmos-transfer2.5:/workspace/cosmos-transfer2.5" \
- nvcr.io/nvidia/nemo:25.11 \
+  -v "$HOME/datasets:/workspace/datasets" \
+  -v "$HOME/checkpoints:/workspace/checkpoints" \
+  -v "$HOME/cosmos-prefer2.5:/workspace/cosmos-prefer2.5" \
+  -v "$HOME/cosmos-predict2.5:/workspace/cosmos-predict2.5" \
+  -v "$HOME/cosmos-transfer2.5:/workspace/cosmos-transfer2.5" \
+  nvcr.io/nvidia/nemo:25.11 \
  bash
 ```
 
@@ -43,6 +43,24 @@ bash setup_environment.sh
 
 # Verify HF_HOME is set (should output: /workspace/checkpoints)
 echo $HF_HOME
+```
+
+**Note:** The setup script will:
+- ✅ Install core dependencies
+- ✅ Create cosmos-cuda stub packages
+- ✅ Configure PYTHONPATH for all Cosmos modules
+- ✅ Install SAM2 (required for Transfer2.5)
+- ✅ Create output directories
+
+**Transfer2.5 Requirements:**
+The setup script automatically installs SAM2 (Segment Anything Model 2) which is required for Transfer2.5 inference. If you encounter any issues, you can manually install it:
+
+```bash
+# Install SAM2 manually if needed
+pip install git+https://github.com/facebookresearch/segment-anything-2.git
+
+# Verify installation
+python -c "import sam2; print('✓ SAM2 installed')"
 ```
 
 ### 3. Download Checkpoints
@@ -61,12 +79,29 @@ python download_checkpoints.py --all
 **Get access to models here:**
 - [Cosmos-Predict2.5-2B](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [Cosmos-Predict2.5-14B](https://huggingface.co/nvidia/Cosmos-Predict2.5-14B)
+- [Cosmos-Transfer2.5-2B](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B)
 
-### 4. Run Text-to-World Inference
+### 4. Download Example Data (Optional)
 
 ```bash
-# Simple example script
-python cosmos_prefer2/examples/01_predict_text2world.py
+# Download example videos and prompts from README
+python download_example_data.py
+```
+
+This will create `data/inputs/` with:
+- Predict2.5 examples (image2world, video2world)
+- Transfer2.5 examples (sim2real, real2real with control maps)
+
+### 5. Run Inference
+
+**Predict2.5 (Text-to-World):**
+```bash
+python cosmos_prefer2/examples/01_basic_predict.py
+```
+
+**Transfer2.5 (Video-to-Video with Control):**
+```bash
+python cosmos_prefer2/examples/02_basic_transfer.py
 ```
 
 The script will:
@@ -88,11 +123,11 @@ python cosmos_prefer2/examples/01_predict_text2world.py
 ### Text-to-World Generation (Python API)
 
 ```python
+from cosmos_prefer2.utils import check_downloads, write_video
 from cosmos_prefer2.inference.predict_helpers import (
     setup_inference_environment,
     build_inference_pipeline,
     yield_video,
-    write_video,
 )
 from pathlib import Path
 
@@ -346,10 +381,10 @@ Built on top of:
 
 ## Resources
 
-- [Cosmos-Predict2.5 GitHub](https://github.com/nvidia-cosmos/cosmos-predict2.5)
-- [Cosmos-Transfer2.5 GitHub](https://github.com/nvidia-cosmos/cosmos-transfer2.5)
+  - [Cosmos-Predict2.5 GitHub](https://github.com/nvidia-cosmos/cosmos-predict2.5)
+  - [Cosmos-Transfer2.5 GitHub](https://github.com/nvidia-cosmos/cosmos-transfer2.5)
 - [Models on HuggingFace](https://huggingface.co/nvidia)
-- [NVIDIA Cosmos Research](https://research.nvidia.com/labs/dir/cosmos/)
+  - [NVIDIA Cosmos Research](https://research.nvidia.com/labs/dir/cosmos/)
 
 ---
 

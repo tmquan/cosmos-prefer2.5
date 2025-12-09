@@ -122,18 +122,8 @@ from .__about__ import __version__ as __version__
 EOF
 
 echo "✓ Cosmos packages patched (CUDA check disabled)"
-export PYTHONPATH="/workspace/cosmos-predict2.5:/workspace/cosmos-transfer2.5:/workspace/cosmos-prefer2.5:$PYTHONPATH"
 
-# Add to bashrc if not already there
-if ! grep -q "cosmos-predict2.5" ~/.bashrc; then
-    echo "" >> ~/.bashrc
-    echo "# Cosmos PYTHONPATH" >> ~/.bashrc
-    echo "export PYTHONPATH=\"/workspace/cosmos-predict2.5:/workspace/cosmos-transfer2.5:/workspace/cosmos-prefer2.5:\$PYTHONPATH\"" >> ~/.bashrc
-fi
-
-echo "✓ PYTHONPATH configured"
-
-# Setup PYTHONPATH (most important step!)
+# Setup PYTHONPATH
 echo
 echo "[5/7] Configuring PYTHONPATH..."
 export PYTHONPATH="/workspace/cosmos-predict2.5:/workspace/cosmos-transfer2.5:/workspace/cosmos-prefer2.5:$PYTHONPATH"
@@ -147,9 +137,26 @@ fi
 
 echo "✓ PYTHONPATH configured"
 
+# Install Transfer2.5 dependencies (SAM2)
+echo
+echo "[6/7] Installing Transfer2.5 dependencies..."
+if python3 -c "import sam2" 2>/dev/null; then
+    echo "✓ SAM2 (Segment Anything Model 2) already installed"
+else
+    echo "Installing SAM2 for Transfer2.5 inference..."
+    pip install -q git+https://github.com/facebookresearch/segment-anything-2.git
+    if [ $? -eq 0 ]; then
+        echo "✓ SAM2 installed successfully"
+    else
+        echo "⚠️  Failed to install SAM2 (required for Transfer2.5)"
+        echo "   You can install it later with:"
+        echo "   pip install git+https://github.com/facebookresearch/segment-anything-2.git"
+    fi
+fi
+
 # Create output directories
 echo
-echo "[6/7] Creating output directories..."
+echo "[7/7] Creating output directories..."
 mkdir -p /workspace/outputs
 mkdir -p /workspace/datasets
 mkdir -p /workspace/checkpoints
@@ -157,7 +164,7 @@ echo "✓ Directories created"
 
 # Verify installation
 echo
-echo "[7/7] Verifying installation..."
+echo "[8/8] Verifying installation..."
 python3 << 'PYEOF'
 import sys
 sys.path.insert(0, '/workspace/cosmos-predict2.5')
@@ -199,6 +206,12 @@ try:
 except Exception as e:
     print(f"✗ cosmos-transfer2: {e}")
 
+try:
+    import sam2
+    print("✓ SAM2 (for Transfer2.5)")
+except Exception as e:
+    print(f"⚠️  SAM2: {e} (needed for Transfer2.5)")
+
 print("\n" + "="*40)
 print("✓ Setup Complete!")
 print("="*40)
@@ -212,34 +225,23 @@ echo
 echo "Next steps:"
 echo ""
 echo "1. Download checkpoints (if not already done):"
+echo "   export HF_HOME=/workspace/checkpoints"
 echo "   huggingface-cli login"
-echo "   python /workspace/cosmos-prefer2.5/download_checkpoints.py --all --cache-dir /workspace/checkpoints"
+echo "   python /workspace/cosmos-prefer2.5/download_checkpoints.py --model predict2.5-2b-posttrained"
 echo ""
-echo "2. Run an example:"
-echo "   python /workspace/cosmos-prefer2.5/cosmos_prefer2/examples/01_basic_generation.py"
+echo "2. Download example data:"
+echo "   cd /workspace/cosmos-prefer2.5"
+echo "   python download_example_data.py"
 echo ""
-echo "3. Read the getting started guide:"
-echo "   cat /workspace/cosmos-prefer2.5/GETTING_STARTED.md | less"
+echo "3. Run Predict2.5 example:"
+echo "   cd /workspace/cosmos-prefer2.5"
+echo "   python cosmos_prefer2/examples/01_basic_predict.py"
 echo ""
-echo "4. Or use Python directly:"
-echo "   python3"
-echo "   >>> from cosmos_prefer2.inference import Predict2Pipeline"
-echo "   >>> pipeline = Predict2Pipeline(checkpoint_path='/workspace/checkpoints/...')"
+echo "4. Run Transfer2.5 example (requires SAM2):"
+echo "   cd /workspace/cosmos-prefer2.5"
+echo "   python cosmos_prefer2/examples/02_basic_transfer.py"
 echo ""
-
-echo
-echo "========================================="
-echo "  Setup Complete!"
-echo "========================================="
-echo
-echo "Next steps:"
-echo "1. Download checkpoints:"
-echo "   python /workspace/cosmos-prefer2.5/download_checkpoints.py --all --cache-dir /workspace/checkpoints"
-echo
-echo "2. Run example:"
-echo "   python /workspace/cosmos-prefer2.5/cosmos_prefer2/examples/01_basic_generation.py"
-echo
-echo "3. Read tutorials:"
-echo "   cat /workspace/cosmos-prefer2.5/cosmos_prefer2/tutorials/BEGINNER_GUIDE.md"
-echo
+echo "5. Read the README:"
+echo "   cat /workspace/cosmos-prefer2.5/README.md | less"
+echo ""
 

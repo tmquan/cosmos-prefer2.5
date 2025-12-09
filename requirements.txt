@@ -1,5 +1,6 @@
 # Minimal requirements for Cosmos-Prefer2.5 inside NVIDIA NeMo Docker
 # Most dependencies (PyTorch, transformers, etc.) are already included in nvcr.io/nvidia/nemo:25.11
+natsort 
 
 # Checkpoint downloader dependencies
 rich>=13.7.0

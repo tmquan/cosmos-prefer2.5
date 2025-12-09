@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Cosmos-Predict2.5 Inference Pipeline with Rich Progress
+Cosmos-Predict2.5 Inference Pipeline
 
 This module provides a user-friendly interface for running inference with Cosmos-Predict2.5 models.
 Features:
-- Beautiful progress bars
+- Simple, intuitive API
+- Comprehensive documentation
 - Step-by-step visualization
-- Easy-to-use API
 - Checkpoint management
 """
 
@@ -25,12 +25,6 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-# Setup PYTHONPATH
-sys.path.insert(0, str(Path("/workspace/cosmos-predict2.5")))
-
-from cosmos_predict2._src.imaginaire.lazy_config.lazy import LazyConfig
-from cosmos_predict2._src.predict2.inference.video2world import Video2WorldInference
-
 console = Console()
 
 
@@ -38,20 +32,22 @@ class Predict2Pipeline:
     """
     User-friendly wrapper for Cosmos-Predict2.5 inference.
     
+    This class provides a simple interface for text-to-video and video-to-video generation
+    with Cosmos-Predict2.5 models.
+    
     Example:
         ```python
-        from cosmos_prefer2.inference import Predict2Pipeline
+        from cosmos_prefer2.inference.predict_pipeline import Predict2Pipeline
         
         # Initialize pipeline
         pipeline = Predict2Pipeline(
             checkpoint_path="/workspace/checkpoints/predict2-posttrained.pt",
-            experiment="video2world_720p_t24_edm"
+            experiment="Stage-c_pt_4-Index-2-Size-2B-Res-720-Fps-16-Note-rf_with_edm_ckpt"
         )
         
         # Generate video
         video = pipeline.generate(
             prompt="A robot arm picking up a red cube",
-            input_video="input.mp4",
             num_frames=121,
             guidance=7.5,
             num_steps=50,
@@ -65,8 +61,8 @@ class Predict2Pipeline:
     def __init__(
         self,
         checkpoint_path: Union[str, Path],
-        experiment: str = "video2world_720p_t24_edm",
-        config_file: Optional[Union[str, Path]] = "",  # Empty string means auto-detect
+        experiment: str = "Stage-c_pt_4-Index-2-Size-2B-Res-720-Fps-16-Note-rf_with_edm_ckpt",
+        config_file: Optional[Union[str, Path]] = None,
         context_parallel_size: int = 1,
         offload_diffusion_model: bool = False,
         offload_text_encoder: bool = False,
@@ -75,17 +71,17 @@ class Predict2Pipeline:
         verbose: bool = True,
     ):
         """
-        Initialize the Predict2 inference pipeline.
+        Initialize the Predict2.5 inference pipeline.
         
         Args:
             checkpoint_path: Path to model checkpoint
             experiment: Experiment configuration name
-            config_file: Optional path to config file
+            config_file: Optional path to config file (auto-detected if None)
             context_parallel_size: Number of GPUs for context parallelism
             offload_diffusion_model: Offload diffusion model to CPU when not in use
             offload_text_encoder: Offload text encoder to CPU
             offload_tokenizer: Offload tokenizer to CPU
-            device: Device to run on
+            device: Device to run on (default: "cuda")
             verbose: Print detailed progress
         """
         self.checkpoint_path = Path(checkpoint_path)
@@ -115,6 +111,10 @@ class Predict2Pipeline:
             
             # Initialize inference pipeline
             try:
+                # Import here to avoid loading unless needed
+                sys.path.insert(0, str(Path("/workspace/cosmos-predict2.5")))
+                from cosmos_predict2._src.predict2.inference.video2world import Video2WorldInference
+                
                 # Build kwargs for Video2WorldInference
                 inference_kwargs = {
                     "experiment_name": experiment,
@@ -133,7 +133,7 @@ class Predict2Pipeline:
                 self.pipe = Video2WorldInference(**inference_kwargs)
                 progress.update(task, advance=1, description="Loading model...")
             except Exception as e:
-                console.print(f"[bold red]Error initializing pipeline: {e}[/bold red]")
+                console.print(f"[bold red]✗ Error initializing pipeline:[/bold red] {e}")
                 raise
             
             progress.update(task, advance=1, description="Loading text encoder...")
@@ -154,9 +154,6 @@ class Predict2Pipeline:
         seed: Optional[int] = None,
         negative_prompt: str = "",
         num_input_frames: int = 1,
-        enable_autoregressive: bool = False,
-        chunk_size: int = 25,
-        chunk_overlap: int = 5,
     ) -> torch.Tensor:
         """
         Generate a video from text prompt.
@@ -171,19 +168,29 @@ class Predict2Pipeline:
             seed: Random seed for reproducibility
             negative_prompt: What to avoid in generation
             num_input_frames: Number of frames to condition on
-            enable_autoregressive: Generate longer videos autoregressively
-            chunk_size: Frames per chunk for autoregressive mode
-            chunk_overlap: Overlap between chunks
         
         Returns:
             Generated video tensor (1, C, T, H, W) in range [-1, 1]
+        
+        Example:
+            >>> video = pipeline.generate(
+            ...     prompt="A robot picks up a cube",
+            ...     num_frames=121,
+            ...     guidance=7.5,
+            ...     seed=42
+            ... )
         """
         if self.verbose:
             console.print("\n[bold cyan]Generation Parameters:[/bold cyan]")
             console.print(f"  • [bold]Prompt:[/bold] {prompt}")
+            if input_video:
+                console.print(f"  • [bold]Input:[/bold] {Path(input_video).name}")
             console.print(f"  • Frames: {num_frames} | Resolution: {resolution[0]}x{resolution[1]}")
             console.print(f"  • Steps: {num_steps} | Guidance: {guidance}")
             console.print()
+        
+        # Format resolution as string
+        resolution_str = f"{resolution[0]},{resolution[1]}"
         
         # Setup progress tracking
         with Progress(
@@ -204,37 +211,22 @@ class Predict2Pipeline:
             gen_task = progress.add_task(f"Generating video ({num_steps} steps)...", total=num_steps)
             
             try:
-                if enable_autoregressive:
-                    video = self.pipe.generate_autoregressive_from_batch(
-                        prompt=prompt,
-                        input_path=str(input_video) if input_video else None,
-                        num_output_frames=num_frames,
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                        guidance=guidance,
-                        num_latent_conditional_frames=num_input_frames,
-                        resolution=resolution,
-                        seed=seed,
-                        negative_prompt=negative_prompt,
-                        num_steps=num_steps,
-                    )
-                else:
-                    video = self.pipe.generate_vid2world(
-                        prompt=prompt,
-                        input_path=str(input_video) if input_video else None,
-                        guidance=guidance,
-                        num_video_frames=num_frames,
-                        num_latent_conditional_frames=num_input_frames,
-                        resolution=resolution,
-                        seed=seed,
-                        negative_prompt=negative_prompt,
-                        num_steps=num_steps,
-                    )
+                video = self.pipe.generate_vid2world(
+                    prompt=prompt,
+                    input_path=str(input_video) if input_video else None,
+                    guidance=guidance,
+                    num_video_frames=num_frames,
+                    num_latent_conditional_frames=num_input_frames,
+                    resolution=resolution_str,
+                    seed=seed,
+                    negative_prompt=negative_prompt,
+                    num_steps=num_steps,
+                )
                 
                 progress.update(gen_task, completed=num_steps)
                 
             except Exception as e:
-                console.print(f"[bold red]Error during generation: {e}[/bold red]")
+                console.print(f"[bold red]✗ Error during generation:[/bold red] {e}")
                 raise
         
         if self.verbose:
@@ -256,6 +248,9 @@ class Predict2Pipeline:
             video: Video tensor (1, C, T, H, W) in range [-1, 1]
             output_path: Path to save video
             fps: Frames per second
+        
+        Example:
+            >>> pipeline.save_video(video, "output.mp4", fps=24)
         """
         from cosmos_predict2._src.imaginaire.visualize.video import save_img_or_video
         
@@ -282,7 +277,7 @@ class Predict2Pipeline:
     
     def _print_config(self, config: dict):
         """Print configuration."""
-        console.print("\n[bold cyan]Configuration:[/bold cyan]")
+        console.print("[bold cyan]Configuration:[/bold cyan]")
         
         important_keys = ['checkpoint_path', 'experiment', 'context_parallel_size', 'device']
         for key in important_keys:
@@ -293,9 +288,6 @@ class Predict2Pipeline:
     def _print_model_info(self):
         """Print model information."""
         try:
-            # Get model config
-            config = self.pipe.config
-            
             console.print("[bold cyan]Model Information:[/bold cyan]")
             console.print(f"  • Experiment: {self.experiment}")
             console.print(f"  • Checkpoint: {self.checkpoint_path.name}")
@@ -307,11 +299,10 @@ class Predict2Pipeline:
 
 if __name__ == "__main__":
     # Example usage
-    console.print("[bold]Example: Cosmos-Predict2.5 Pipeline[/bold]\n")
+    console.print("[bold]Cosmos-Predict2.5 Pipeline - Example Usage[/bold]\n")
     
-    # This would be used as:
     example_code = '''
-from cosmos_prefer2.inference import Predict2Pipeline
+from cosmos_prefer2.inference.predict_pipeline import Predict2Pipeline
 
 # Initialize
 pipeline = Predict2Pipeline(
@@ -324,6 +315,7 @@ video = pipeline.generate(
     num_frames=121,
     num_steps=50,
     guidance=7.5,
+    seed=42
 )
 
 # Save
@@ -332,4 +324,3 @@ pipeline.save_video(video, "output.mp4")
     
     console.print("[bold]Usage Example:[/bold]\n")
     console.print(example_code)
-

@@ -318,6 +318,11 @@ Important:
                 console.print(f"  • [cyan]{model_dir.name}[/cyan]")
             console.print()
         
+        # Print directory tree
+        console.print("[bold cyan]Directory Structure:[/bold cyan]\n")
+        print_tree(hub_dir, prefix="", is_last=True)
+        console.print()
+        
         console.print("[bold green]✓ To use these checkpoints for inference, set:[/bold green]")
         console.print(f"[yellow]  export HF_HOME={final_cache_dir}[/yellow]\n")
         console.print("[dim]This ensures cosmos inference uses these cached files instead of re-downloading.[/dim]\n")
